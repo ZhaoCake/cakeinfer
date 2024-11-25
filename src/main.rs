@@ -1,3 +1,3 @@
 fn main() {
-    println!("Hello, world!");
+    //let mut model = LeNet5::new();
 }
