@@ -1,55 +1,55 @@
-use ndarray::{Array, Array4};
+use ndarray::Array4;
 
-pub struct Conv {
-    pub kernels: Array4<f32>,
-    pub biases: Array<f32, ndarray::Dim<[usize; 1]>>, //
-    pub stride: usize,
-    pub padding: usize,
+pub struct Conv2D {
+    weights: Array4<f32>,
+    bias: Array4<f32>,
+    kernel_size: usize,
+    stride: usize,
 }
 
-impl Conv {
-    pub fn new(
-        num_kernels: usize,
-        kernel_size: usize,
-        input_depth: usize,
-        stride: usize,
-        padding: usize,
-    ) -> Self {
-        let kernels = Array::zeros((num_kernels, input_depth, kernel_size, kernel_size));
-        let biases = Array::zeros(num_kernels);
-        Conv {
-            kernels,
-            biases,
+impl Conv2D {
+    pub fn from_weights(weights: Array4<f32>, bias: Array4<f32>, stride: usize, kernel_size: usize) -> Self {
+        Conv2D {
+            weights,
+            bias,
+            kernel_size,
             stride,
-            padding,
         }
     }
 
-    pub fn forword(&self, _input: &Array4<f32>) -> Array4<f32> {
-        let input = _input;
-        let (batch_size, input_depth, input_height, input_width) = input.dim();
-        let (_, num_kernels, kernel_size, _) = self.kernels.dim();
-        let output_height = (input_height - kernel_size + 2 * self.padding) / self.stride + 1;
-        let output_width = (input_width - kernel_size + 2 * self.padding) / self.stride + 1;
-        let mut output = Array::zeros((batch_size, num_kernels, output_height, output_width));
+    pub fn forward(&self, input: &Array4<f32>) -> Array4<f32> {
+        let (batch_size, in_channels, in_height, in_width) = input.dim();
+        let (out_channels, _, _, _) = self.weights.dim();
+        
+        let out_height = (in_height - self.kernel_size) / self.stride + 1;
+        let out_width = (in_width - self.kernel_size) / self.stride + 1;
+        
+        let mut output = Array4::zeros((batch_size, out_channels, out_height, out_width));
+        
+        // 实现卷积运算
         for b in 0..batch_size {
-            for k in 0..num_kernels {
-                for y in 0..output_height {
-                    for x in 0..output_width {
-                        let y_start = y * self.stride;
-                        let y_end = y_start + kernel_size;
-                        let x_start = x * self.stride;
-                        let x_end = x_start + kernel_size;
-                        let input_slice = input.slice(s![b, .., y_start..y_end, x_start..x_end]);
-                        output[[b, k, y, x]] = input_slice
-                            .iter()
-                            .zip(self.kernels.slice(s![k, .., .., ..]).iter())
-                            .map(|(a, b)| a * b)
-                            .sum();
+            for oc in 0..out_channels {
+                for h in 0..out_height {
+                    for w in 0..out_width {
+                        let h_start = h * self.stride;
+                        let w_start = w * self.stride;
+                        
+                        let mut sum = self.bias[[oc, 0, 0, 0]];
+                        for ic in 0..in_channels {
+                            for kh in 0..self.kernel_size {
+                                for kw in 0..self.kernel_size {
+                                    sum += input[[b, ic, h_start + kh, w_start + kw]] 
+                                        * self.weights[[oc, ic, kh, kw]];
+                                }
+                            }
+                        }
+                        // 使用与C代码相同的激活函数
+                        output[[b, oc, h, w]] = 1.7159 * (0.66666667 * sum).tanh();
                     }
                 }
             }
         }
+        
         output
     }
 }
