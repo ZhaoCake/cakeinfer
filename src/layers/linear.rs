@@ -9,7 +9,7 @@ impl Linear {
     pub fn new(in_features: usize, out_features: usize) -> Self {
         Linear {
             weights: Array2::zeros((out_features, in_features)),
-            bias: Array2::zeros((out_features, 1)),
+            bias: Array2::zeros((1, out_features)),
         }
     }
 
@@ -26,7 +26,11 @@ impl Linear {
         let output = input.dot(&self.weights.t());
         
         // 添加偏置
-        &output + &self.bias.broadcast((output.shape()[0], output.shape()[1])).unwrap()
+        let batch_size = output.shape()[0];
+        let broadcasted_bias = self.bias.broadcast((batch_size, self.bias.shape()[1]))
+            .expect("无法广播偏置向量到正确的形状");
+        
+        &output + &broadcasted_bias
     }
 
     pub fn from_weights(weights: Vec<Vec<f32>>, bias: Vec<f32>) -> Self {
@@ -39,12 +43,13 @@ impl Linear {
             .collect();
             
         let weights = Array2::from_shape_vec(
-            (in_features, out_features),  // 修改这里：转置权重矩阵
+            (in_features, out_features),
             weights_flat
         ).unwrap()
         .reversed_axes();  // 转置矩阵
         
-        let bias = Array2::from_shape_vec((out_features, 1), bias).unwrap();
+        // 修改偏置的形状为 (1, out_features)
+        let bias = Array2::from_shape_vec((1, out_features), bias).unwrap();
         
         Linear {
             weights,

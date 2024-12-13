@@ -3,7 +3,7 @@ use crate::layers::{
     linear::Linear,
 };
 use ndarray::{Array2, Array4};
-use crate::data::load_weights;
+use crate::data::load_weights_from_file;
 
 pub struct LeNet5 {
     layer1: Conv2D,    // 6个卷积核 [6][1][5][5]
@@ -14,7 +14,7 @@ pub struct LeNet5 {
 
 impl LeNet5 {
     pub fn new() -> Self {
-        let weights = load_weights();
+        let weights = load_weights_from_file("resources/lenet_param.txt");
         
         // Layer1: 1->6 卷积层
         let layer1_weights = Array4::from_shape_vec(
@@ -27,7 +27,7 @@ impl LeNet5 {
         ).unwrap();
         let layer1_bias = Array4::from_shape_vec((6, 1, 1, 1), weights.layer1.bias).unwrap();
 
-        // Layer2: 6->16 卷积层
+        // Layer2: 6->50 卷积层
         let layer2_weights = Array4::from_shape_vec(
             (50, 6, 5, 5),
             weights.layer2.weights.into_iter()
@@ -58,8 +58,8 @@ impl LeNet5 {
                 5,              // kernel_size = 5
             ),
             layer2: Conv2D::from_weights(
-                layer2_weights,  // shape should be [50, 6, 5, 5]
-                layer2_bias,    // shape should be [50]
+                layer2_weights,  // 使用之前已经正确转换的 layer2_weights
+                layer2_bias,     // 使用之前已经正确转换的 layer2_bias
                 2,              // stride = 2
                 5,              // kernel_size = 5
             ),
